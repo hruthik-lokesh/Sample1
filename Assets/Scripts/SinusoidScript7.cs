@@ -1,4 +1,4 @@
-/*using System.Collections;
+ï»¿/*using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -93,14 +93,16 @@ public class SinusoidScript7 : MonoBehaviour
 */
 
 
+
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class SinusoidScript7 : MonoBehaviour
 {
-    // Public variables - set in Inspector
-    public Vector3[] Sinusoid;
+    // Public variables - set in Inspector
+    public Vector3[] Sinusoid;
     public float[] zTarget;
     public float[] yTarget;
     public Mesh Sphere;
@@ -109,7 +111,7 @@ public class SinusoidScript7 : MonoBehaviour
     public GameObject runwayend;
     public GameObject parms;
 
-    // *** NEW: Reference to the Main Camera Transform (XR Origin's Main Camera) ***
+    // *** Reference to the Main Camera Transform (XR Origin's Main Camera) ***
     public Transform mainCamera;
 
     // Hidden or internal variables
@@ -119,93 +121,96 @@ public class SinusoidScript7 : MonoBehaviour
     public int[] rval;
     [HideInInspector]
     public int dir; // 1 = up, 2 = down
-    [HideInInspector]
+    [HideInInspector]
     public int cnd; // 1 = control, 2 == experimental
-    [HideInInspector]
+    [HideInInspector]
     public int block;
 
-    // Start is called before the first frame update
     void Start()
     {
         Sinusoid = new Vector3[158];
         zTarget = new float[158];
         yTarget = new float[158];
 
-        // ** Important: Auto-find the main camera if it hasn't been set in the Inspector **
+        // Auto-find the main camera if it hasn't been set in the Inspector
         if (mainCamera == null)
         {
-            // Find the active Main Camera in the scene
-            mainCamera = Camera.main.transform;
+            mainCamera = Camera.main.transform;
+            if (mainCamera != null)
+            {
+                Debug.Log("SinusoidScript7: Auto-found Main Camera");
+            }
+            else
+            {
+                Debug.LogError("SinusoidScript7: Could not find Main Camera! Please assign it in the inspector.");
+                return;
+            }
         }
-
-        // Vector3 p = runwayend.transform.position; // unused in MakeObjects()
-
-        // Read in parameters (currently commented out)
-        // cnd = parms.GetComponent<InputParameters>().condition;
-        // block = parms.GetComponent<InputParameters>().block;
 
         MakeObjects();
     }
 
-
     void MakeObjects()
     {
-        // --- Placement Parameters ---
-        // How far in front of the user's head should the wave start (in meters)
-        const float DISTANCE_IN_FRONT = 0.6f;
-        // Vertical offset from the user's eye level (negative is lower)
-        const float VERTICAL_OFFSET = 1.1f;
-        const float HORIZONTAL_OFFSET = -0.2f;
-        // --- Calculate World Spawn Point ---
-        // The point in world space where the first sphere (i=0) will be placed
-        Vector3 startPosition = mainCamera.position +
-                                    mainCamera.forward * DISTANCE_IN_FRONT +
-                                    mainCamera.up * VERTICAL_OFFSET +
-                                    mainCamera.right * HORIZONTAL_OFFSET;
+        // --- Placement Parameters ---
+        const float DISTANCE_IN_FRONT = 0.4f; // half of their max arm->30cm
+        const float VERTICAL_OFFSET = 1.0f;
+        const float HORIZONTAL_OFFSET = -0.25f;
 
-        // The rotation of the camera determines the orientation of the wave 
-        // (so it faces the user)
+        // Calculate World Spawn Point
+        Vector3 startPosition = mainCamera.position +
+                                mainCamera.forward * DISTANCE_IN_FRONT +
+                                mainCamera.up * VERTICAL_OFFSET +
+                                mainCamera.right * HORIZONTAL_OFFSET;
+
         Quaternion cameraRotation = mainCamera.rotation;
 
-        // *** OPTIONAL: Create a single parent object for cleanup and organization ***
+        // Create parent object for organization
         GameObject sinusoidParent = new GameObject("Sinusoid_Fixed_World_Space");
 
         int i = 0;
         while (i < 252)
         {
-            // 1. Calculate base sine wave position (Local Space)
-            // X=0, Y=Sin(i), Z=Length(i)
-            Vector3 pos = new Vector3(0, Mathf.Sin(i * 0.05f) * .1f, i * 0.001992032f);
+            // Calculate base sine wave position (Local Space)
+            Vector3 pos = new Vector3(0, Mathf.Sin(i * 0.05f) * .1f, i * 0.001992032f);
 
-            // 2. Swapped coordinates (Sinusoid runs along X-axis in local space)
-            // (Length, Oscillation, Zero) -> (X, Y, Z)
-            Vector3 rotatepos = new Vector3(pos.z, pos.y, pos.x);
+            // Swapped coordinates (Sinusoid runs along X-axis in local space)
+            Vector3 rotatepos = new Vector3(pos.z, pos.y, pos.x);
 
-            // 3. Transform the local position to the camera's World Space
-            // We rotate the local sine wave vector by the camera's rotation 
-            // and then offset it by the desired start position.
-            Vector3 finalWorldPosition = startPosition + (cameraRotation * rotatepos);
+            // Transform to World Space
+            Vector3 finalWorldPosition = startPosition + (cameraRotation * rotatepos);
 
-            // create object
-            GameObject go1 = new GameObject();
+            // Create object
+            GameObject go1 = new GameObject();
             go1.name = "go" + i;
 
-            // add shape, material, and collider
+            // Add shape, material, and collider
             go1.AddComponent<MeshFilter>().mesh = Sphere;
             go1.AddComponent<MeshRenderer>().material = greyLine;
-            SphereCollider sc = go1.AddComponent(typeof(SphereCollider)) as SphereCollider;
+
+            // Add sphere collider as trigger for collision detection
+            SphereCollider sc = go1.AddComponent<SphereCollider>();
+            sc.isTrigger = true; // Make it a trigger
+            sc.radius = 0.015f; // Slightly larger than visual size
+
             go1.layer = 5;
-
-            // *** Apply the final, camera-relative World Position ***
             go1.transform.position = finalWorldPosition;
-
-            // set size of object
             go1.transform.localScale = new Vector3(.005f, .005f, .005f);
-
-            // Parent the sphere for organization
             go1.transform.SetParent(sinusoidParent.transform);
+
+            // Debug logs for important points (no tags needed)
+            if (i == 0)
+            {
+                Debug.Log($"âœ“ Created go0 (start point) at {finalWorldPosition} with trigger collider");
+            }
+            else if (i == 251)
+            {
+                Debug.Log($"âœ“ Created go251 (end point) at {finalWorldPosition} with trigger collider");
+            }
 
             i++;
         }
+
+        Debug.Log("âœ“ SinusoidScript7: Created 252 sine wave points with colliders");
     }
 }

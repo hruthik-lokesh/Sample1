@@ -1,0 +1,351 @@
+using System;
+using System.Linq;
+using UnityEngine;
+
+public static class StaticValsReach7
+{
+
+    public static int requestedMode = 0; // 0 = normal, 1 = proactive
+
+    // Possible coin locations in cm (will be converted to Unity units by dividing by 100)
+    public static int[] possiblelocations = { 52, 63, 74, 115, 125, 136, 178, 188, 199 };
+
+    // Training trial locations and directions
+    public static int[] breaklocations_training = { 188, 115, 136, 52, 74, 199, 52, 199, 136, 63, 115, 74, 125, 52, 125, 63, 178, 74, 63, 74, 188, 188, 52, 115, 136, 178, 125, 199, 136, 63, 115, 199, 125, 178, 188, 178 };
+    public static int[] dir_training = { 1, 1, 2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2, 1, 1, 2, 2, 1, 2, 1 };
+
+    // Post-training locations and directions
+    public static int[] breaklocations_post = { 74, 63, 125, 188, 115, 178, 52, 199, 125, 52, 63, 136, 178, 136, 188, 115, 74, 199 };
+    public static int[] dir_post = { 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 2, 1, 1, 2, 2, 1, 2, 1 };
+
+    // Current state
+    public static int curindex = 0;
+    public static bool restart = false;
+    public static int breakloc;
+    public static int direc;
+    public static int block;
+
+    // Random coin values
+    public static int ran1;
+    public static int ran2;
+    public static int ran3;
+
+    /// <summary>
+    /// Select 3 random locations from possiblelocations with minimum 15 units apart
+    /// </summary>
+    /// 
+
+    private static readonly int[][] fallbackSets = new int[][]
+    {
+        new int[] {33, 52, 115},
+        new int[] {33, 52, 178},
+        new int[] {33, 63, 115},
+        new int[] {33, 63, 136},
+        new int[] {33, 74, 125},
+        new int[] {33, 74, 188},
+        new int[] {33, 115, 136},
+        new int[] {33, 125, 178},
+        new int[] {33, 136, 188},
+        new int[] {33, 52, 125}
+    };
+    public static int[] Shuffle()
+    {
+        System.Random rand = new System.Random();
+        var shuffled = possiblelocations.OrderBy(x => rand.Next()).ToArray();
+
+        // Try to select 3 numbers with the minimum difference of 15
+        int[] selectedNumbers = new int[3];
+        int count = 0;
+
+        for (int i = 0; i < shuffled.Length; i++)
+        {
+            if (count == 0)
+            {
+                selectedNumbers[count++] = shuffled[i]; // Pick the first number
+            }
+            else if (count == 1 && Math.Abs(shuffled[i] - selectedNumbers[0]) >= 20)
+            {
+                selectedNumbers[count++] = shuffled[i]; // Pick the second number
+            }
+            else if (count == 2 && Math.Abs(shuffled[i] - selectedNumbers[0]) >= 20 && Math.Abs(shuffled[i] - selectedNumbers[1]) >= 20)
+            {
+                selectedNumbers[count++] = shuffled[i]; // Pick the third number
+            }
+
+            // If we have selected 3 numbers, we can stop
+            if (count == 3)
+            {
+                break;
+            }
+        }
+
+        // If we couldn't find 3 numbers with 15 units apart (unlikely), return what we have
+        if (count < 3)
+        {
+            if (count < 3)
+            {
+                Debug.LogWarning($"StaticValsReach7: Only found {count} locations with 15+ units spacing. Using hardcoded fallback set.");
+                // Pick a random fallback set
+                int fallbackIndex = rand.Next(fallbackSets.Length);
+                int[] fallback = fallbackSets[fallbackIndex];
+                selectedNumbers[0] = fallback[0];
+                selectedNumbers[1] = fallback[1];
+                selectedNumbers[2] = fallback[2];
+            }
+
+        }
+
+        Debug.Log($"StaticValsReach7.Shuffle() returned: [{selectedNumbers[0]}, {selectedNumbers[1]}, {selectedNumbers[2]}]");
+
+        return selectedNumbers;
+    }
+
+    /// <summary>
+    /// Set trial parameters (simplified for XR - removed networking code)
+    /// </summary>
+    public static (int, bool, int, int, int, int, int) Set(int next)
+    {
+        Debug.Log("StaticValsReach7.Set() called");
+
+        // Increment trial index
+        curindex = curindex + next;
+        restart = true;
+
+        // Get trial parameters from training arrays
+        if (curindex < breaklocations_training.Length)
+        {
+            breakloc = breaklocations_training[curindex];
+            direc = dir_training[curindex];
+        }
+        else
+        {
+            Debug.LogWarning($"curindex {curindex} exceeds training array length. Using post-training values.");
+            int postIndex = curindex - breaklocations_training.Length;
+            if (postIndex < breaklocations_post.Length)
+            {
+                breakloc = breaklocations_post[postIndex];
+                direc = dir_post[postIndex];
+            }
+            else
+            {
+                Debug.LogWarning($"curindex exceeds all arrays. Resetting to 0.");
+                curindex = 0;
+                breakloc = breaklocations_training[0];
+                direc = dir_training[0];
+            }
+        }
+
+        // Get random coin locations
+        var rrvv = Shuffle();
+
+        int[] ranval = new int[3];
+        ranval[0] = rrvv[0];
+
+        // Additional spacing check (from your original code)
+        int j = 1;
+        for (int k = 1; k < 3; k++)
+        {
+            if (k == 1)
+            {
+                if (Math.Abs(rrvv[j] - ranval[k - 1]) < 12)
+                {
+                    ranval[k] = rrvv[j + 1];
+                    j = j + 2;
+                }
+                else
+                {
+                    ranval[k] = rrvv[j];
+                    j++;
+                }
+            }
+            else if (k == 2)
+            {
+                if (Math.Abs(rrvv[k] - ranval[k - 1]) < 12 || Math.Abs(rrvv[k] - ranval[k - 2]) < 12)
+                {
+                    ranval[k] = rrvv[j + 1];
+                    j = j + 2;
+                }
+                else
+                {
+                    ranval[k] = rrvv[j];
+                    j++;
+                }
+            }
+        }
+
+        ran1 = ranval[0];
+        ran2 = ranval[1];
+        ran3 = ranval[2];
+
+        Debug.Log($"StaticValsReach7.Set() - curindex: {curindex}, breakloc: {breakloc}, direc: {direc}");
+        Debug.Log($"StaticValsReach7.Set() - Coin locations: [{ran1}, {ran2}, {ran3}]");
+
+        return (curindex, restart, breakloc, direc, ran1, ran2, ran3);
+    }
+
+    /// <summary>
+    /// Reset the trial counter
+    /// </summary>
+    public static void Reset()
+    {
+        curindex = 0;
+        restart = false;
+        Debug.Log("StaticValsReach7 reset to initial state");
+    }
+}
+
+
+//using System;
+//using System.Linq;
+//using UnityEngine;
+
+//public static class StaticValsReach7
+//{
+//    public static int requestedMode = 0; // 0 = normal, 1 = proactive, 2 = reactive
+
+//    // Possible coin locations in cm (will be converted to Unity units by dividing by 100)
+//    public static int[] possiblelocations = { 52, 63, 74, 115, 125, 136, 178, 188, 199 };
+
+//    // Training trial locations and directions
+//    public static int[] breaklocations_training = { 188, 115, 136, 52, 74, 199, 52, 199, 136, 63, 115, 74, 125, 52, 125, 63, 178, 74, 63, 74, 188, 188, 52, 115, 136, 178, 125, 199, 136, 63, 115, 199, 125, 178, 188, 178 };
+//    public static int[] dir_training = { 1, 1, 2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 1, 1, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2, 1, 1, 2, 2, 1, 2, 1 };
+
+//    // Post-training locations and directions
+//    public static int[] breaklocations_post = { 74, 63, 125, 188, 115, 178, 52, 199, 125, 52, 63, 136, 178, 136, 188, 115, 74, 199 };
+//    public static int[] dir_post = { 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 2, 1, 1, 2, 2, 1, 2, 1 };
+
+//    // Current state
+//    public static int curindex = 0;
+//    public static bool restart = false;
+//    public static int breakloc;
+//    public static int direc;
+//    public static int block;
+
+//    // Random coin values
+//    public static int ran1;
+//    public static int ran2;
+//    public static int ran3;
+
+//    /// <summary>
+//    /// Select 3 random locations from possiblelocations with minimum 15 units apart (all pairs)
+//    /// </summary>
+//    public static int[] Shuffle()
+//    {
+//        System.Random rand = new System.Random();
+//        var shuffled = possiblelocations.OrderBy(x => rand.Next()).ToArray();
+
+//        // Try all combinations to find 3 numbers with all pairs >= 15 units apart
+//        for (int i = 0; i < shuffled.Length; i++)
+//        {
+//            for (int j = i + 1; j < shuffled.Length; j++)
+//            {
+//                if (Math.Abs(shuffled[i] - shuffled[j]) < 15) continue;
+//                for (int k = j + 1; k < shuffled.Length; k++)
+//                {
+//                    if (Math.Abs(shuffled[i] - shuffled[k]) < 15) continue;
+//                    if (Math.Abs(shuffled[j] - shuffled[k]) < 15) continue;
+//                    // Found a valid set
+//                    Debug.Log($"StaticValsReach7.Shuffle() returned: [{shuffled[i]}, {shuffled[j]}, {shuffled[k]}]");
+//                    return new int[] { shuffled[i], shuffled[j], shuffled[k] };
+//                }
+//            }
+//        }
+
+//        // Fallback: just pick the first three if no valid set found
+//        Debug.LogWarning("StaticValsReach7: Could not find 3 locations with 15+ units spacing. Using closest available.");
+//        return shuffled.Take(3).ToArray();
+//    }
+
+//    /// <summary>
+//    /// Set trial parameters (simplified for XR - removed networking code)
+//    /// </summary>
+//    public static (int, bool, int, int, int, int, int) Set(int next)
+//    {
+//        Debug.Log("StaticValsReach7.Set() called");
+
+//        // Increment trial index
+//        curindex = curindex + next;
+//        restart = true;
+
+//        // Get trial parameters from training arrays
+//        if (curindex < breaklocations_training.Length)
+//        {
+//            breakloc = breaklocations_training[curindex];
+//            direc = dir_training[curindex];
+//        }
+//        else
+//        {
+//            Debug.LogWarning($"curindex {curindex} exceeds training array length. Using post-training values.");
+//            int postIndex = curindex - breaklocations_training.Length;
+//            if (postIndex < breaklocations_post.Length)
+//            {
+//                breakloc = breaklocations_post[postIndex];
+//                direc = dir_post[postIndex];
+//            }
+//            else
+//            {
+//                Debug.LogWarning($"curindex exceeds all arrays. Resetting to 0.");
+//                curindex = 0;
+//                breakloc = breaklocations_training[0];
+//                direc = dir_training[0];
+//            }
+//        }
+
+//        // Get random coin locations
+//        var rrvv = Shuffle();
+
+//        int[] ranval = new int[3];
+//        ranval[0] = rrvv[0];
+
+//        // Additional spacing check (from your original code)
+//        int j = 1;
+//        for (int k = 1; k < 3; k++)
+//        {
+//            if (k == 1)
+//            {
+//                if (Math.Abs(rrvv[j] - ranval[k - 1]) < 12)
+//                {
+//                    ranval[k] = rrvv[j + 1];
+//                    j = j + 2;
+//                }
+//                else
+//                {
+//                    ranval[k] = rrvv[j];
+//                    j++;
+//                }
+//            }
+//            else if (k == 2)
+//            {
+//                if (Math.Abs(rrvv[k] - ranval[k - 1]) < 12 || Math.Abs(rrvv[k] - ranval[k - 2]) < 12)
+//                {
+//                    ranval[k] = rrvv[j + 1];
+//                    j = j + 2;
+//                }
+//                else
+//                {
+//                    ranval[k] = rrvv[j];
+//                    j++;
+//                }
+//            }
+//        }
+
+//        ran1 = ranval[0];
+//        ran2 = ranval[1];
+//        ran3 = ranval[2];
+
+//        Debug.Log($"StaticValsReach7.Set() - curindex: {curindex}, breakloc: {breakloc}, direc: {direc}");
+//        Debug.Log($"StaticValsReach7.Set() - Coin locations: [{ran1}, {ran2}, {ran3}]");
+
+//        return (curindex, restart, breakloc, direc, ran1, ran2, ran3);
+//    }
+
+//    /// <summary>
+//    /// Reset the trial counter
+//    /// </summary>
+//    public static void Reset()
+//    {
+//        curindex = 0;
+//        restart = false;
+//        Debug.Log("StaticValsReach7 reset to initial state");
+//    }
+//}
