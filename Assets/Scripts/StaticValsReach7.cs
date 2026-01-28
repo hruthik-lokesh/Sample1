@@ -33,27 +33,11 @@ public static class StaticValsReach7
     /// <summary>
     /// Select 3 random locations from possiblelocations with minimum 15 units apart
     /// </summary>
-    /// 
-
-    private static readonly int[][] fallbackSets = new int[][]
-    {
-        new int[] {33, 52, 115},
-        new int[] {33, 52, 178},
-        new int[] {33, 63, 115},
-        new int[] {33, 63, 136},
-        new int[] {33, 74, 125},
-        new int[] {33, 74, 188},
-        new int[] {33, 115, 136},
-        new int[] {33, 125, 178},
-        new int[] {33, 136, 188},
-        new int[] {33, 52, 125}
-    };
     public static int[] Shuffle()
     {
         System.Random rand = new System.Random();
         var shuffled = possiblelocations.OrderBy(x => rand.Next()).ToArray();
 
-        // Try to select 3 numbers with the minimum difference of 15
         int[] selectedNumbers = new int[3];
         int count = 0;
 
@@ -61,41 +45,57 @@ public static class StaticValsReach7
         {
             if (count == 0)
             {
-                selectedNumbers[count++] = shuffled[i]; // Pick the first number
+                selectedNumbers[count++] = shuffled[i];
             }
-            else if (count == 1 && Math.Abs(shuffled[i] - selectedNumbers[0]) >= 20)
+            else if (count == 1 && Math.Abs(shuffled[i] - selectedNumbers[0]) >= 15)
             {
-                selectedNumbers[count++] = shuffled[i]; // Pick the second number
+                selectedNumbers[count++] = shuffled[i];
             }
-            else if (count == 2 && Math.Abs(shuffled[i] - selectedNumbers[0]) >= 20 && Math.Abs(shuffled[i] - selectedNumbers[1]) >= 20)
+            else if (count == 2 && 
+                     Math.Abs(shuffled[i] - selectedNumbers[0]) >= 15 && 
+                     Math.Abs(shuffled[i] - selectedNumbers[1]) >= 15)
             {
-                selectedNumbers[count++] = shuffled[i]; // Pick the third number
+                selectedNumbers[count++] = shuffled[i];
             }
 
-            // If we have selected 3 numbers, we can stop
-            if (count == 3)
-            {
-                break;
-            }
+            if (count == 3) break;
         }
 
-        // If we couldn't find 3 numbers with 15 units apart (unlikely), return what we have
+        // Fallback: use hardcoded sets with VALID locations only
         if (count < 3)
         {
-            if (count < 3)
+            Debug.LogWarning($"StaticValsReach7: Only found {count} locations. Using hardcoded fallback set.");
+            int[][] fallbackSets = new int[][]
             {
-                Debug.LogWarning($"StaticValsReach7: Only found {count} locations with 15+ units spacing. Using hardcoded fallback set.");
-                // Pick a random fallback set
-                int fallbackIndex = rand.Next(fallbackSets.Length);
-                int[] fallback = fallbackSets[fallbackIndex];
-                selectedNumbers[0] = fallback[0];
-                selectedNumbers[1] = fallback[1];
-                selectedNumbers[2] = fallback[2];
-            }
-
+                // Format: {left, middle, right} - all spaced 40+ apart
+                new int[] {74, 125, 178},   // Best: all away from edges
+                new int[] {74, 125, 188},
+                new int[] {74, 136, 178},
+                new int[] {74, 115, 178},
+                new int[] {63, 125, 188},
+                new int[] {63, 136, 188},
+                new int[] {52, 125, 199},   // Edge cases but middle is centered
+                new int[] {52, 136, 199},
+            };
+            int idx = rand.Next(fallbackSets.Length);
+            selectedNumbers[0] = fallbackSets[idx][0];
+            selectedNumbers[1] = fallbackSets[idx][1];
+            selectedNumbers[2] = fallbackSets[idx][2];
         }
 
-        Debug.Log($"StaticValsReach7.Shuffle() returned: [{selectedNumbers[0]}, {selectedNumbers[1]}, {selectedNumbers[2]}]");
+        // Validate spacing
+        int d01 = Math.Abs(selectedNumbers[0] - selectedNumbers[1]);
+        int d02 = Math.Abs(selectedNumbers[0] - selectedNumbers[2]);
+        int d12 = Math.Abs(selectedNumbers[1] - selectedNumbers[2]);
+
+        if (d01 < 15 || d02 < 15 || d12 < 15)
+        {
+            Debug.LogError($"StaticValsReach7: SPACING ERROR! [{selectedNumbers[0]}, {selectedNumbers[1]}, {selectedNumbers[2]}] distances: {d01}, {d02}, {d12}");
+        }
+        else
+        {
+            Debug.Log($"StaticValsReach7: Spacing OK! [{selectedNumbers[0]}, {selectedNumbers[1]}, {selectedNumbers[2]}] distances: {d01}, {d02}, {d12}");
+        }
 
         return selectedNumbers;
     }
@@ -137,9 +137,15 @@ public static class StaticValsReach7
 
         // Get random coin locations
         var rrvv = Shuffle();
-
+        /*
+         * 
+ 
         int[] ranval = new int[3];
         ranval[0] = rrvv[0];
+         
+
+
+
 
         // Additional spacing check (from your original code)
         int j = 1;
@@ -172,10 +178,13 @@ public static class StaticValsReach7
                 }
             }
         }
+        */
 
-        ran1 = ranval[0];
-        ran2 = ranval[1];
-        ran3 = ranval[2];
+
+
+        ran1 = rrvv[0];
+        ran2 = rrvv[1];
+        ran3 = rrvv[2];
 
         Debug.Log($"StaticValsReach7.Set() - curindex: {curindex}, breakloc: {breakloc}, direc: {direc}");
         Debug.Log($"StaticValsReach7.Set() - Coin locations: [{ran1}, {ran2}, {ran3}]");

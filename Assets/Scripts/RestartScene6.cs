@@ -47,6 +47,36 @@
 //}
 
 
+//using UnityEngine;
+//using UnityEngine.SceneManagement;
+//using UnityEngine.InputSystem;
+
+//public class RestartScene6 : MonoBehaviour
+//{
+//    private void Update()
+//    {
+//        if (Keyboard.current.rKey.wasPressedThisFrame)
+//        {
+//            StaticValsReach7.requestedMode = 0; // Normal mode
+//            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+//            Debug.Log("Scene restarted (normal mode)");
+//        }
+//        else if (Keyboard.current.pKey.wasPressedThisFrame)
+//        {
+//            StaticValsReach7.requestedMode = 1; // Proactive mode
+//            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+//            Debug.Log("Scene restarted (proactive mode)");
+//        }
+//        else if (Keyboard.current.aKey.wasPressedThisFrame)
+//        {
+//            StaticValsReach7.requestedMode = 2; // Reactive mode
+//            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+//            Debug.Log("Scene restarted (reactive mode)");
+//        }
+//    }
+//}
+
+
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
@@ -58,20 +88,30 @@ public class RestartScene6 : MonoBehaviour
         if (Keyboard.current.rKey.wasPressedThisFrame)
         {
             StaticValsReach7.requestedMode = 0; // Normal mode
+            StaticValsReach7.Set(1); // Advance to next trial with NEW random coins
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted (normal mode)");
+            Debug.Log("Scene restarted (normal mode) - Trial advanced");
         }
         else if (Keyboard.current.pKey.wasPressedThisFrame)
         {
             StaticValsReach7.requestedMode = 1; // Proactive mode
+            StaticValsReach7.Set(1); // Advance to next trial with NEW random coins
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted (proactive mode)");
+            Debug.Log("Scene restarted (proactive mode) - Trial advanced");
         }
         else if (Keyboard.current.aKey.wasPressedThisFrame)
         {
             StaticValsReach7.requestedMode = 2; // Reactive mode
+            StaticValsReach7.Set(1); // Advance to next trial with NEW random coins
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted (reactive mode)");
+            Debug.Log("Scene restarted (reactive mode) - Trial advanced");
+        }
+        // Optional: Add a key to restart SAME trial (no Set call)
+        else if (Keyboard.current.sKey.wasPressedThisFrame)
+        {
+            // Restart same trial without advancing
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+            Debug.Log("Scene restarted - SAME trial (no advance)");
         }
     }
 }
