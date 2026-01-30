@@ -397,10 +397,9 @@ public class CoinBombScript1 : MonoBehaviour
     public Material blue;
     public Material greyLine; // Reference to the grey sine wave material
 
-    [Header("Mode Settings")]
-    [Tooltip("0 = Normal, 1 = Proactive, 2 = Reactive")]
-    [Range(0, 2)]
-    public int mode = 0;
+    [Header("Mode Settings (Read from StaticValsReach7)")]
+    [Tooltip("Behavior mode derived from experiment mode: 0=Baseline, 1=Proactive, 2=Reactive")]
+    [SerializeField] private int behaviorMode = 0;
 
     [Header("Proactive/Reactive Mode Settings")]
     [Tooltip("Distance offset (meters, default 0.1 = 10cm)")]
@@ -428,6 +427,7 @@ public class CoinBombScript1 : MonoBehaviour
     private int proactiveLocation1, proactiveLocation2, proactiveLocation3;
     private bool isInitialized = false;
     private bool[] coinActivated = new bool[3];
+    private ExperimentModeCondition currentExperimentMode;
 
     void Start()
     {
@@ -437,13 +437,18 @@ public class CoinBombScript1 : MonoBehaviour
             StaticValsReach7.Set(0);
         }
 
-        mode = StaticValsReach7.requestedMode;
-        Debug.Log($"CoinBombScript1: MODE = {mode} (0=Normal, 1=Proactive, 2=Reactive)");
+        // Get the full experiment mode and behavior mode
+        currentExperimentMode = StaticValsReach7.requestedExperimentMode;
+        behaviorMode = StaticValsReach7.requestedMode; // Uses the property that converts to 0/1/2
+
+        Debug.Log($"CoinBombScript1: Experiment Mode Condition = {ExperimentModeConditionHelper.GetDisplayName(currentExperimentMode)} ({(int)currentExperimentMode})");
+        Debug.Log($"CoinBombScript1: Behavior Mode = {behaviorMode} (0=Baseline, 1=Proactive, 2=Reactive)");
+        Debug.Log($"CoinBombScript1: Environment = {ExperimentModeConditionHelper.GetEnvironment(currentExperimentMode)}");
 
         GetRandomCoinLocations();
 
         Debug.Log($"CoinBombScript1: Coin locations = [{coin1Location}, {coin2Location}, {coin3Location}]");
-        if (mode == 1 || mode == 2)
+        if (behaviorMode == 1 || behaviorMode == 2)
         {
             Debug.Log($"CoinBombScript1: Proactive locations = [{proactiveLocation1}, {proactiveLocation2}, {proactiveLocation3}]");
         }
@@ -453,7 +458,8 @@ public class CoinBombScript1 : MonoBehaviour
 
     void Update()
     {
-        if (mode == 2 && userSphere != null && isInitialized)
+        // Reactive behavior mode (behaviorMode == 2)
+        if (behaviorMode == 2 && userSphere != null && isInitialized)
         {
             // Check and reveal BOTH point AND coin when user is close
             CheckAndRevealPointAndCoin(0, ProactiveGobj1, coin1, proactiveCoin1Position);
@@ -642,9 +648,9 @@ public class CoinBombScript1 : MonoBehaviour
 
         Transform[] allChildren = sinusoidParent.GetComponentsInChildren<Transform>();
 
-        if (mode == 0)
+        if (behaviorMode == 0) // Baseline
             FindNormalModeLocations(allChildren);
-        else if (mode == 1 || mode == 2)
+        else if (behaviorMode == 1 || behaviorMode == 2) // Proactive or Reactive
             FindProactiveModeLocations(allChildren);
 
         if (Gobj1 == null || Gobj2 == null || Gobj3 == null)
@@ -662,7 +668,7 @@ public class CoinBombScript1 : MonoBehaviour
         PlaceCoins();
 
         isInitialized = true;
-        Debug.Log("CoinBombScript1: Initialization complete!");
+        Debug.Log($"CoinBombScript1: Initialization complete! Mode: {ExperimentModeConditionHelper.GetDisplayName(currentExperimentMode)}");
     }
 
     void FindNormalModeLocations(Transform[] allChildren)
@@ -695,7 +701,7 @@ public class CoinBombScript1 : MonoBehaviour
 
     void CalculateCoinPositions()
     {
-        if (mode == 1 || mode == 2)
+        if (behaviorMode == 1 || behaviorMode == 2) // Proactive or Reactive
         {
             coin1Position = proactiveCoin1Position + new Vector3(0, proactiveOffset * ydirs[0], 0);
             coin2Position = proactiveCoin2Position + new Vector3(0, proactiveOffset * ydirs[1], 0);
@@ -721,7 +727,7 @@ public class CoinBombScript1 : MonoBehaviour
         PlaceCoin(coin2, coin2Position);
         PlaceCoin(coin3, coin3Position);
 
-        if (mode == 0)
+        if (behaviorMode == 0) // Baseline
         {
             coin1?.SetActive(false);
             coin2?.SetActive(false);
@@ -729,7 +735,7 @@ public class CoinBombScript1 : MonoBehaviour
             return;
         }
 
-        if (mode == 1)
+        if (behaviorMode == 1) // Proactive
         {
             // Proactive mode: show orange coin markers and blue target points immediately
             MarkSineWavePoint(Gobj1, orange);
@@ -743,7 +749,7 @@ public class CoinBombScript1 : MonoBehaviour
                 MarkSineWavePoint(ProactiveGobj3, blue);
             }
         }
-        else if (mode == 2)
+        else if (behaviorMode == 2) // Reactive
         {
             // Reactive mode: Orange markers for coin locations
             MarkSineWavePoint(Gobj1, orange);
@@ -828,5 +834,6 @@ public class CoinBombScript1 : MonoBehaviour
     public GameObject GetSineWavePoint(int i) => i == 0 ? Gobj1 : i == 1 ? Gobj2 : Gobj3;
     public GameObject GetCoin(int i) => i == 0 ? coin1 : i == 1 ? coin2 : coin3;
     public bool IsInitialized() => isInitialized && Gobj1 != null && Gobj2 != null && Gobj3 != null;
-    public int GetMode() => mode;
+    public int GetBehaviorMode() => behaviorMode;
+    public ExperimentModeCondition GetExperimentMode() => currentExperimentMode;
 }

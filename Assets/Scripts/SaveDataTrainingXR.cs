@@ -390,6 +390,16 @@ using System;
 
 public class SaveDataTrainingXR : MonoBehaviour
 {
+    [Header("=== EXPERIMENT MODE CONDITION ===")]
+    [Tooltip("Select the experiment mode condition (1-6). This will be applied when Play is pressed.\n" +
+             "1. Proactive_VR - Behavior 1 (Proactive)\n" +
+             "2. Reactive_VR - Behavior 2 (Reactive)\n" +
+             "3. Baseline_VR - Behavior 0 (Normal)\n" +
+             "4. Proactive_AR - Behavior 1 (Proactive)\n" +
+             "5. Reactive_AR - Behavior 2 (Reactive)\n" +
+             "6. Baseline_AR - Behavior 0 (Normal)")]
+    public ExperimentModeCondition experimentMode = ExperimentModeCondition._3_Baseline_VR;
+
     [Header("Main References")]
     public XRNode trackedHand = XRNode.RightHand;
     public GameObject pacer;
@@ -417,14 +427,8 @@ public class SaveDataTrainingXR : MonoBehaviour
     [Tooltip("Leave empty to use default location (My Documents/MetaXR_Logs). Or specify custom path.")]
     public string filepathpre = "";
 
-    [Tooltip("Custom filename (without extension). Leave empty to auto-generate with timestamp.")]
-    public string customFileName = "";
-
-    [Tooltip("If true, adds timestamp to custom filename. If false, uses exact name (may overwrite).")]
-    public bool appendTimestamp = true;
-
-    private string delimiter = ",";
-    private string extension = ".csv";
+    private const string DELIMITER = ",";
+    private const string EXTENSION = ".csv";
     private string filepath;
 
     // Runtime state
@@ -447,14 +451,27 @@ public class SaveDataTrainingXR : MonoBehaviour
 
     // CSV buffer - write every N frames instead of all at end
     private readonly List<string> frameData = new List<string>();
-    private const int WRITE_BUFFER_SIZE = 300; // Write every 300 frames (~5 seconds at 60fps)
+    private const int WRITE_BUFFER_SIZE = 300;
+
+    // Cached StringBuilder for Update loop optimization
+    private StringBuilder lineBuilder;
 
     private void Awake()
     {
+        // Apply the selected experiment mode to the static class
+        StaticValsReach7.SetExperimentMode(experimentMode);
+
         Debug.Log("=== SaveDataTrainingXR: Awake() called ===");
+        Debug.Log($"🎮 Experiment Mode Condition: {ExperimentModeConditionHelper.GetDisplayName(experimentMode)} ({(int)experimentMode})");
+        Debug.Log($"📋 Mode Description: {ExperimentModeConditionHelper.GetModeDescription(experimentMode)}");
+        Debug.Log($"🔧 Behavior Mode: {ExperimentModeConditionHelper.GetBehaviorMode(experimentMode)} (0=Baseline, 1=Proactive, 2=Reactive)");
+        Debug.Log($"🌐 Environment: {ExperimentModeConditionHelper.GetEnvironment(experimentMode)}");
 
         hitt = 0;
         finished = 0;
+
+        // Initialize StringBuilder for optimization
+        lineBuilder = new StringBuilder(512);
 
         // Determine save location
         if (string.IsNullOrEmpty(filepathpre))
@@ -494,33 +511,19 @@ public class SaveDataTrainingXR : MonoBehaviour
             Debug.LogWarning($"⚠️ Using Unity persistent data path: {filepathpre}");
         }
 
-        // Build filename based on settings
-        string filename;
-        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        // Build filename using curindex for trial number
+        // Format: Trial{curindex + 1}.csv (starts at Trial1)
+        // Example: Trial1.csv, Trial2.csv, etc.
+        int trialNumber = StaticValsReach7.curindex + 1;
+        string filename = $"Trial{trialNumber}";
 
-        if (string.IsNullOrEmpty(customFileName))
-        {
-            // No custom name - use default with timestamp
-            filename = $"Trial_{timestamp}";
-        }
-        else if (appendTimestamp)
-        {
-            // Custom name with timestamp appended
-            filename = $"{customFileName}_{timestamp}";
-        }
-        else
-        {
-            // Exact custom name (no timestamp)
-            filename = customFileName;
-        }
+        filepath = Path.Combine(filepathpre, $"{filename}{EXTENSION}");
 
-        filepath = Path.Combine(filepathpre, $"{filename}{extension}");
+        Debug.Log($"📁 Saving to: {filepath}");
 
-        Debug.Log($"📁 CSV file will be: {filepath}");
-
-        // Write CSV header with new go0 and go251 position columns
+        // Write CSV header with experiment mode columns
         StringBuilder header = new StringBuilder();
-        header.Append("Frame,Time,Distance,PosX,PosY,PosZ,PacerX,Holding,Hit,Finished,");
+        header.Append("Frame,Time,ExperimentMode,BehaviorMode,Environment,Distance,PosX,PosY,PosZ,PacerX,Holding,Hit,Finished,");
         header.Append("HitTime,HitPosX,HitPosY,HitPosZ,");
         header.Append("FinishedTime,FinishedPosX,FinishedPosY,FinishedPosZ,");
         header.Append("Go0_X,Go0_Y,Go0_Z,Go251_X,Go251_Y,Go251_Z,");
@@ -565,6 +568,26 @@ public class SaveDataTrainingXR : MonoBehaviour
         else
         {
             Debug.LogError("✗ Sphere not assigned in inspector!");
+        }
+
+        // Auto-find CoinCollector if not assigned
+        if (coinCollectorScript == null)
+        {
+            coinCollectorScript = FindObjectOfType<CoinCollector>();
+            if (coinCollectorScript != null)
+                Debug.Log("✓ CoinCollector auto-discovered");
+            else
+                Debug.LogWarning("⚠️ CoinCollector not found in scene! Coin collection will not be tracked.");
+        }
+
+        // Auto-find CoinBombScript1 if not assigned
+        if (coinBombScript == null)
+        {
+            coinBombScript = FindObjectOfType<CoinBombScript1>();
+            if (coinBombScript != null)
+                Debug.Log("✓ CoinBombScript1 auto-discovered");
+            else
+                Debug.LogWarning("⚠️ CoinBombScript1 not found in scene! Coin locations will not be tracked.");
         }
 
         Debug.Log($"Coin references - coin1:{coin1 != null}, coin2:{coin2 != null}, coin3:{coin3 != null}");
@@ -709,19 +732,26 @@ public class SaveDataTrainingXR : MonoBehaviour
             finishedPos = collisionDetector.finishedPosition;
         }
 
-        StringBuilder line = new StringBuilder();
-        line.Append($"{Time.frameCount}{delimiter}{Time.time:F4}{delimiter}{distance:F4}{delimiter}");
-        line.Append($"{handPos.x:F4}{delimiter}{handPos.y:F4}{delimiter}{handPos.z:F4}{delimiter}");
-        line.Append($"{pacerx:F4}{delimiter}{(isHolding ? 1 : 0)}{delimiter}{hitt}{delimiter}{finished}{delimiter}");
-        line.Append($"{hitTime:F4}{delimiter}{hitPos.x:F4}{delimiter}{hitPos.y:F4}{delimiter}{hitPos.z:F4}{delimiter}");
-        line.Append($"{finishedTime:F4}{delimiter}{finishedPos.x:F4}{delimiter}{finishedPos.y:F4}{delimiter}{finishedPos.z:F4}{delimiter}");
-        line.Append($"{go0Position.x:F4}{delimiter}{go0Position.y:F4}{delimiter}{go0Position.z:F4}{delimiter}");
-        line.Append($"{go251Position.x:F4}{delimiter}{go251Position.y:F4}{delimiter}{go251Position.z:F4}{delimiter}");
-        line.Append($"{coin1x:F4}{delimiter}{coin1y:F4}{delimiter}{Coin1go}{delimiter}{CoinGet1}{delimiter}");
-        line.Append($"{coin2x:F4}{delimiter}{coin2y:F4}{delimiter}{Coin2go}{delimiter}{CoinGet2}{delimiter}");
-        line.Append($"{coin3x:F4}{delimiter}{coin3y:F4}{delimiter}{Coin3go}{delimiter}{CoinGet3}");
+        // Get mode info for CSV
+        int behaviorMode = ExperimentModeConditionHelper.GetBehaviorMode(experimentMode);
+        string environment = ExperimentModeConditionHelper.GetEnvironment(experimentMode);
 
-        frameData.Add(line.ToString());
+        // Build CSV line using reusable StringBuilder
+        lineBuilder.Clear();
+        lineBuilder.Append($"{Time.frameCount}{DELIMITER}{Time.time:F4}{DELIMITER}");
+        lineBuilder.Append($"{(int)experimentMode}{DELIMITER}{behaviorMode}{DELIMITER}{environment}{DELIMITER}");
+        lineBuilder.Append($"{distance:F4}{DELIMITER}");
+        lineBuilder.Append($"{handPos.x:F4}{DELIMITER}{handPos.y:F4}{DELIMITER}{handPos.z:F4}{DELIMITER}");
+        lineBuilder.Append($"{pacerx:F4}{DELIMITER}{(isHolding ? 1 : 0)}{DELIMITER}{hitt}{DELIMITER}{finished}{DELIMITER}");
+        lineBuilder.Append($"{hitTime:F4}{DELIMITER}{hitPos.x:F4}{DELIMITER}{hitPos.y:F4}{DELIMITER}{hitPos.z:F4}{DELIMITER}");
+        lineBuilder.Append($"{finishedTime:F4}{DELIMITER}{finishedPos.x:F4}{DELIMITER}{finishedPos.y:F4}{DELIMITER}{finishedPos.z:F4}{DELIMITER}");
+        lineBuilder.Append($"{go0Position.x:F4}{DELIMITER}{go0Position.y:F4}{DELIMITER}{go0Position.z:F4}{DELIMITER}");
+        lineBuilder.Append($"{go251Position.x:F4}{DELIMITER}{go251Position.y:F4}{DELIMITER}{go251Position.z:F4}{DELIMITER}");
+        lineBuilder.Append($"{coin1x:F4}{DELIMITER}{coin1y:F4}{DELIMITER}{Coin1go}{DELIMITER}{CoinGet1}{DELIMITER}");
+        lineBuilder.Append($"{coin2x:F4}{DELIMITER}{coin2y:F4}{DELIMITER}{Coin2go}{DELIMITER}{CoinGet2}{DELIMITER}");
+        lineBuilder.Append($"{coin3x:F4}{DELIMITER}{coin3y:F4}{DELIMITER}{Coin3go}{DELIMITER}{CoinGet3}");
+
+        frameData.Add(lineBuilder.ToString());
 
         if (frameData.Count >= WRITE_BUFFER_SIZE)
         {
@@ -730,9 +760,8 @@ public class SaveDataTrainingXR : MonoBehaviour
 
         if (Time.frameCount % 300 == 0)
         {
-            Debug.Log($"Frame {Time.frameCount}: Hit={hitt}, Finished={finished}, " +
+            Debug.Log($"Frame {Time.frameCount}: Mode={experimentMode}, Hit={hitt}, Finished={finished}, " +
                      $"Coins collected: [{CoinGet1},{CoinGet2},{CoinGet3}], " +
-                     $"Locations: [{Coin1go},{Coin2go},{Coin3go}], " +
                      $"Buffered lines={frameData.Count}");
         }
     }

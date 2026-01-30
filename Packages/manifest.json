@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.meta.xr.sdk.all": "78.0.0",
+    "com.meta.xr.sdk.all": "83.0.3",
     "com.unity.collab-proxy": "2.9.3",
     "com.unity.device-simulator.devices": "1.0.1",
     "com.unity.feature.development": "1.0.2",
@@ -12,11 +12,11 @@
     "com.unity.render-pipelines.universal": "17.2.0",
     "com.unity.test-framework": "1.6.0",
     "com.unity.xr.androidxr-openxr": "1.0.1",
-    "com.unity.xr.arcore": "6.2.0",
-    "com.unity.xr.arfoundation": "6.2.0",
+    "com.unity.xr.arcore": "6.2.1",
+    "com.unity.xr.arfoundation": "6.2.1",
     "com.unity.xr.hands": "1.6.1",
     "com.unity.xr.interaction.toolkit": "3.2.1",
-    "com.unity.xr.management": "4.5.1",
+    "com.unity.xr.management": "4.5.4",
     "com.unity.xr.meta-openxr": "2.2.0",
     "com.unity.xr.openxr": "1.15.1",
     "com.unity.modules.accessibility": "1.0.0",

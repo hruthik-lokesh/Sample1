@@ -81,37 +81,50 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Simple scene restart controller.
+/// Press R to restart scene and advance to next trial.
+/// Mode is set in SaveDataTrainingXR inspector - no runtime mode switching.
+/// </summary>
 public class RestartScene6 : MonoBehaviour
 {
+    [Header("Current Trial Info (Read-Only)")]
+    [SerializeField] private string currentModeDisplay = "";
+    [SerializeField] private int currentTrialNumber = 0;
+
+    private void Start()
+    {
+        UpdateDisplay();
+    }
+
+    private void UpdateDisplay()
+    {
+        currentTrialNumber = StaticValsReach7.curindex;
+        currentModeDisplay = $"Trial {currentTrialNumber} - {ExperimentModeConditionHelper.GetDisplayName(StaticValsReach7.requestedExperimentMode)}";
+        Debug.Log($"?? {currentModeDisplay}");
+    }
+
     private void Update()
     {
+        // R key: Restart scene and advance to next trial
         if (Keyboard.current.rKey.wasPressedThisFrame)
         {
-            StaticValsReach7.requestedMode = 0; // Normal mode
-            StaticValsReach7.Set(1); // Advance to next trial with NEW random coins
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted (normal mode) - Trial advanced");
+            RestartAndAdvanceTrial();
         }
-        else if (Keyboard.current.pKey.wasPressedThisFrame)
-        {
-            StaticValsReach7.requestedMode = 1; // Proactive mode
-            StaticValsReach7.Set(1); // Advance to next trial with NEW random coins
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted (proactive mode) - Trial advanced");
-        }
-        else if (Keyboard.current.aKey.wasPressedThisFrame)
-        {
-            StaticValsReach7.requestedMode = 2; // Reactive mode
-            StaticValsReach7.Set(1); // Advance to next trial with NEW random coins
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted (reactive mode) - Trial advanced");
-        }
-        // Optional: Add a key to restart SAME trial (no Set call)
-        else if (Keyboard.current.sKey.wasPressedThisFrame)
-        {
-            // Restart same trial without advancing
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-            Debug.Log("Scene restarted - SAME trial (no advance)");
-        }
+    }
+
+    /// <summary>
+    /// Restart scene, advance trial index, and create new CSV file
+    /// </summary>
+    private void RestartAndAdvanceTrial()
+    {
+        int previousTrial = StaticValsReach7.curindex;
+        StaticValsReach7.Set(1); // Advance to next trial with new random coins
+        int newTrial = StaticValsReach7.curindex;
+        
+        Debug.Log($"?? Restarting: Trial {previousTrial} ? Trial {newTrial}");
+        Debug.Log($"?? Mode: {ExperimentModeConditionHelper.GetDisplayName(StaticValsReach7.requestedExperimentMode)}");
+        
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }

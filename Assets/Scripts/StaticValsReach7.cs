@@ -4,8 +4,36 @@ using UnityEngine;
 
 public static class StaticValsReach7
 {
+    /// <summary>
+    /// The currently requested experiment mode condition (1-6)
+    /// 1=Proactive_VR, 2=Reactive_VR, 3=Baseline_VR, 4=Proactive_AR, 5=Reactive_AR, 6=Baseline_AR
+    /// </summary>
+    public static ExperimentModeCondition requestedExperimentMode = ExperimentModeCondition._3_Baseline_VR;
 
-    public static int requestedMode = 0; // 0 = normal, 1 = proactive
+    /// <summary>
+    /// Legacy property for backward compatibility - returns behavior mode (0, 1, or 2)
+    /// 0=Baseline, 1=Proactive, 2=Reactive
+    /// </summary>
+    public static int requestedMode
+    {
+        get => ExperimentModeConditionHelper.GetBehaviorMode(requestedExperimentMode);
+        set
+        {
+            // Convert legacy mode to new enum (assumes VR for backward compatibility)
+            switch (value)
+            {
+                case 1:
+                    requestedExperimentMode = ExperimentModeCondition._1_Proactive_VR;
+                    break;
+                case 2:
+                    requestedExperimentMode = ExperimentModeCondition._2_Reactive_VR;
+                    break;
+                default:
+                    requestedExperimentMode = ExperimentModeCondition._3_Baseline_VR;
+                    break;
+            }
+        }
+    }
 
     // Possible coin locations in cm (will be converted to Unity units by dividing by 100)
     public static int[] possiblelocations = { 52, 63, 74, 115, 125, 136, 178, 188, 199 };
@@ -105,7 +133,7 @@ public static class StaticValsReach7
     /// </summary>
     public static (int, bool, int, int, int, int, int) Set(int next)
     {
-        Debug.Log("StaticValsReach7.Set() called");
+        Debug.Log($"StaticValsReach7.Set() called - Mode: {ExperimentModeConditionHelper.GetDisplayName(requestedExperimentMode)} ({ExperimentModeConditionHelper.GetModeDescription(requestedExperimentMode)})");
 
         // Increment trial index
         curindex = curindex + next;
@@ -200,6 +228,15 @@ public static class StaticValsReach7
         curindex = 0;
         restart = false;
         Debug.Log("StaticValsReach7 reset to initial state");
+    }
+
+    /// <summary>
+    /// Set the experiment mode condition directly
+    /// </summary>
+    public static void SetExperimentMode(ExperimentModeCondition mode)
+    {
+        requestedExperimentMode = mode;
+        Debug.Log($"StaticValsReach7: Mode set to {ExperimentModeConditionHelper.GetDisplayName(mode)} ({(int)mode}) - {ExperimentModeConditionHelper.GetModeDescription(mode)}");
     }
 }
 
