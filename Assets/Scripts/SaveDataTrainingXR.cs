@@ -517,7 +517,7 @@ public class SaveDataTrainingXR : MonoBehaviour
         int trialNumber = StaticValsReach7.curindex + 1;
         string filename = $"Trial{trialNumber}";
 
-        filepath = Path.Combine(filepathpre, $"{filename}{EXTENSION}");
+        filepath = Path.Combine(filepathpre, $"{filename}{EXTENSION}"); 
 
         Debug.Log($"📁 Saving to: {filepath}");
 
@@ -736,12 +736,19 @@ public class SaveDataTrainingXR : MonoBehaviour
         int behaviorMode = ExperimentModeConditionHelper.GetBehaviorMode(experimentMode);
         string environment = ExperimentModeConditionHelper.GetEnvironment(experimentMode);
 
+        // Get sphere position (the [BuildingBlock] Cube that the user moves)
+        Vector3 spherePos = Vector3.zero;
+        if (sphere != null)
+        {
+            spherePos = sphere.transform.position;
+        }
+
         // Build CSV line using reusable StringBuilder
         lineBuilder.Clear();
         lineBuilder.Append($"{Time.frameCount}{DELIMITER}{Time.time:F4}{DELIMITER}");
         lineBuilder.Append($"{(int)experimentMode}{DELIMITER}{behaviorMode}{DELIMITER}{environment}{DELIMITER}");
         lineBuilder.Append($"{distance:F4}{DELIMITER}");
-        lineBuilder.Append($"{handPos.x:F4}{DELIMITER}{handPos.y:F4}{DELIMITER}{handPos.z:F4}{DELIMITER}");
+        lineBuilder.Append($"{spherePos.x:F4}{DELIMITER}{spherePos.y:F4}{DELIMITER}{spherePos.z:F4}{DELIMITER}");
         lineBuilder.Append($"{pacerx:F4}{DELIMITER}{(isHolding ? 1 : 0)}{DELIMITER}{hitt}{DELIMITER}{finished}{DELIMITER}");
         lineBuilder.Append($"{hitTime:F4}{DELIMITER}{hitPos.x:F4}{DELIMITER}{hitPos.y:F4}{DELIMITER}{hitPos.z:F4}{DELIMITER}");
         lineBuilder.Append($"{finishedTime:F4}{DELIMITER}{finishedPos.x:F4}{DELIMITER}{finishedPos.y:F4}{DELIMITER}{finishedPos.z:F4}{DELIMITER}");
